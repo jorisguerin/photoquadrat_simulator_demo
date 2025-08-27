@@ -121,7 +121,7 @@ def main():
         ["All points", "Custom number"],
         help="Choose whether to use all points in each quadrat or specify a number"
     )
-    if annotation_mode == "Custom number":
+    if annotation_mode is "Custom number":
         points_per_quadrat = st.sidebar.number_input("Number of Points per Quadrat",
                                                      min_value=1, max_value=500, value=10, step=1)
     else:
@@ -182,6 +182,11 @@ def main():
             st.caption(f"Showing first {n_shown} of {n_total} samples")
         else:
             st.caption(f"Showing all {n_shown} samples")
+
+        if annotation_mode is "All points":
+            st.caption("All pixels are used to compute cover proportions")
+        else:
+            st.caption("Only points corresponding to red crosses are used to compute cover proportions")
 
 
 
