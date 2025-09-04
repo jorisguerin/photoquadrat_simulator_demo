@@ -1,5 +1,4 @@
 import numpy as np
-# from time import time
 
 #######################
 ### RANDOM SAMPLING ###
@@ -108,15 +107,6 @@ def random_sampling_map(img, n_samples, quadrat_size_meters=1.0, pixel_size=0.01
         samples.append(sample)
 
     return sample_points, samples
-
-def generate_samples_MC_random(img, n_samples, n_MC, quadrat_size):
-    samples = []
-    for _ in range(n_MC):
-        _, s = random_sampling_map(img, n_samples, quadrat_size)
-        samples.append(s)
-    samples = np.array(samples)
-    return samples
-
 
 ##############################
 ### FREE TRANSECT SAMPLING ###
@@ -242,19 +232,6 @@ def free_transect_sampling_map(img, n_transects,
 
     return sample_points, samples
 
-def generate_samples_MC_free_transects(img, n_transects, n_quadrat_per_transect, distance_between_quadrats,
-                                       n_MC, quadrat_size):
-    samples = []
-    while len(samples) < n_MC:
-        _, s = free_transect_sampling_map(img, n_transects, n_quadrat_per_transect, distance_between_quadrats,
-                                          quadrat_size)
-
-        if len(s) >= n_transects:
-            samples.append(s)
-
-    samples = np.array(samples)
-    return samples
-
 
 ##################################
 ### PARALLEL TRANSECT SAMPLING ###
@@ -365,21 +342,6 @@ def parallel_transect_sampling_map(img, n_transects,
         samples.append(sample)
 
     return sample_points, samples
-
-def generate_samples_MC_parallel_transects(img, n_transects, n_quadrat_per_transect,
-                                           distance_between_quadrats, distance_between_transects,
-                                           n_MC, quadrat_size):
-    samples = []
-    while len(samples) < n_MC:
-        _, s = parallel_transect_sampling_map(img, n_transects,
-                                              n_quadrat_per_transect, distance_between_quadrats,
-                                              distance_between_transects, quadrat_size)
-
-        if len(s) >= n_transects:
-            samples.append(s)
-
-    samples = np.array(samples)
-    return samples
 
 
 ##############################################
@@ -557,85 +519,9 @@ def ND_transect_sampling_map(img, n_transects, n_quadrat_per_transect, distance_
     return sample_points, samples
 
 
-def generate_samples_MC_ND_transects(img, n_transects, n_quadrat_per_transect,
-                                     distance_between_quadrats, n_MC, quadrat_size):
-    """
-    Generate multiple Monte Carlo samples using non-directional transect sampling
-
-    Parameters:
-    -----------
-    img : numpy.ndarray
-        Input image to sample from
-    n_transects : int
-        Number of non-directional transects to generate
-    n_quadrat_per_transect : int
-        Number of quadrats per transect
-    distance_between_quadrats : float
-        Approximate distance between quadrats in meters
-    n_MC : int
-        Number of Monte Carlo samples to generate
-    quadrat_size : float
-        Size of sampling quadrat in meters
-
-    Returns:
-    --------
-    samples : numpy.ndarray
-        Array of samples with shape (n_MC, n_transects*n_quadrat_per_transect, quadrat_size, quadrat_size)
-    """
-    samples = []
-    while len(samples) < n_MC:
-        _, s = ND_transect_sampling_map(img, n_transects, n_quadrat_per_transect,
-                                            distance_between_quadrats, quadrat_size)
-        if len(s) >= n_transects:
-            samples.append(s)
-
-    samples = np.array(samples)
-    return samples
-
-
-######################
-### MODIFY SAMPLES ###
-######################
-
-def crop_quadrat_half(quadrat):
-    """Extract the center portion of the quadrat (1/4 area)"""
-    h, w = quadrat.shape
-    h_start, h_end = h // 4, 3 * h // 4
-    w_start, w_end = w // 4, 3 * w // 4
-    return quadrat[h_start:h_end, w_start:w_end]
-
-def get_half_quadrat_samples(samples_MC):
-    samples_half = []
-    for samples in samples_MC:
-        samples_half.append(np.array([crop_quadrat_half(quadrat) for quadrat in samples]))
-    samples_half = np.array(samples_half)
-    return samples_half
-
-def subsample_quadrats(samples_MC, n_quadrats):
-    subsamples = samples_MC[:, :n_quadrats, :, :]
-    return subsamples
-
-
 ###################################
 ### SIMULATE QUADRAT ANNOTATION ###
 ###################################
-
-def sample_quadrats(quadrats, n_points):
-    points = []
-    for q in quadrats:
-        x_coords = np.arange(q.shape[0])
-        y_coords = np.arange(q.shape[1])
-        coords = np.array(np.meshgrid(x_coords, y_coords)).T.reshape(-1, 2)
-
-        indices = np.random.choice(len(coords), n_points, replace=False)
-        pts = coords[indices]
-
-        for p in pts:
-            pt = q[p[0], p[1]]
-            points.append(pt)
-
-    points = np.array(points)
-    return points
 
 def sample_quadrats_streamlit(quadrats, n_points):
     points, points_locations = [], []
@@ -656,93 +542,3 @@ def sample_quadrats_streamlit(quadrats, n_points):
     points = np.array(points)
 
     return points, points_locations
-
-def sample_quadrats_MC(MC_samples, n_points):
-    samples_pts = []
-    for samples in MC_samples:
-        samples_pts.append(sample_quadrats(samples, n_points))
-    samples_pts = np.array(samples_pts)
-
-    return samples_pts
-
-
-#####################################
-### SIMULATE AUTOMATED ANNOTATION ###
-#####################################
-
-def simulate_predictions_by_flipping(true_labels, precision, recall, target_class, random_seed=None):
-    """
-    Simulate predictions by flipping labels based on precision and recall.
-
-    For non-target class: P(predict target) = 1 - precision
-    For target class: P(predict correct) = recall
-
-    Parameters:
-    -----------
-    true_labels : array-like
-        Ground truth labels
-    precision : float
-        Target precision (between 0 and 1)
-    recall : float
-        Target recall (between 0 and 1)
-    target_class : int
-        The class of interest
-    random_seed : int
-        Random seed for reproducibility
-
-    Returns:
-    --------
-    predictions : array-like
-        Simulated predictions
-    """
-    if random_seed is not None:
-        np.random.seed(random_seed)
-
-    true_labels = np.array(true_labels)
-    predictions = true_labels.copy()
-
-    # Calculate FPR from precision and recall
-    # precision = TP / (TP + FP)
-    # Si on a N_pos positifs et N_neg négatifs:
-    # TP = recall * N_pos
-    # FP = FPR * N_neg
-    # precision = (recall * N_pos) / (recall * N_pos + FPR * N_neg)
-
-    target_mask = (true_labels == target_class)
-    n_pos = np.sum(target_mask)
-    n_neg = np.sum(~target_mask)
-
-    if n_pos > 0 and n_neg > 0 and precision > 0:
-        # Résoudre pour FPR
-        fpr = (recall * n_pos * (1 - precision)) / (precision * n_neg)
-        fpr = min(fpr, 1.0)  # Limiter à 1.0
-    else:
-        fpr = 0
-
-    # Pour les instances de la classe cible : TPR = recall
-    target_indices = np.where(target_mask)[0]
-    for idx in target_indices:
-        if np.random.random() < (1 - recall):  # Manquer avec prob (1-recall)
-            # Choisir une classe non-cible aléatoire
-            non_target_classes = np.unique(true_labels[~target_mask])
-            if len(non_target_classes) > 0:
-                predictions[idx] = np.random.choice(non_target_classes)
-            else:
-                predictions[idx] = target_class + 1
-
-    # Pour les instances non-cible : FPR = FP/(FP+TN)
-    non_target_indices = np.where(~target_mask)[0]
-    for idx in non_target_indices:
-        if np.random.random() < fpr:  # Faux positif avec prob FPR
-            predictions[idx] = target_class
-
-    return predictions
-
-def simulate_predictions_MC(true_labels_MC, precision, recall, target_class, random_seed=None):
-    preds = []
-    for true_labels in true_labels_MC:
-        preds.append(simulate_predictions_by_flipping(true_labels, precision, recall, target_class, random_seed))
-    preds = np.array(preds)
-    return preds
-
-

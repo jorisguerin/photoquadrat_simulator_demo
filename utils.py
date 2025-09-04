@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib.patches import Patch
 from matplotlib_scalebar.scalebar import ScaleBar
-from time import time
 
 def compute_proportions(samples, n_classes=10):
     """
@@ -32,107 +31,6 @@ def compute_proportions(samples, n_classes=10):
         return counts[1:] / n_valid
 
     return np.zeros(n_classes)
-
-
-def display_map(map_image, class_params,
-                sample_points=None, window_size_meters=1.0, pixel_size=0.01,
-                figsize=(15, 10), save_path=None,
-                fast_display=False, legend=True, downsample_factor=8):
-    """
-    Display a classified map with optional sampling points
-
-    Parameters:
-    -----------
-    map_image : numpy.ndarray
-        The classified map to display
-    class_params : dict, optional
-        Dictionary mapping class indices to their properties (color and name)
-    sample_points : list of tuples, optional
-        List of (y, x) coordinates for sampling points
-    window_size_meters : float, optional
-        Size of sampling windows in meters (default: 1.0)
-    pixel_size : float, optional
-        Size of each pixel in meters (default: 0.01)
-    figsize : tuple, optional
-        Figure size in inches (default: (15, 10))
-    save_path : str, optional
-        If provided, saves the figure to this path
-    """
-    if fast_display:
-        map_image_display = map_image[::downsample_factor, ::downsample_factor]
-        display_pixel_size = pixel_size * downsample_factor
-    else:
-        map_image_display = map_image
-        display_pixel_size = pixel_size
-
-    # Create color mapping
-    colors = [class_params[i]['color'] for i in range(len(class_params))]
-    classes = [class_params[i]['name'] for i in range(len(class_params))]
-    values = np.unique(map_image_display)
-    n_colors = len(colors)
-    cmap = mcolors.ListedColormap(colors)
-
-    # Create figure
-    plt.figure(figsize=figsize)
-    plt.imshow(map_image_display, cmap=cmap, vmin=0, vmax=n_colors)
-
-    # Create legend patches
-    handles = [Patch(facecolor=colors[i], edgecolor='black',
-                     linewidth=0.5, label=classes[i]) for i in values]
-
-    # Add scale bar
-    scalebar = ScaleBar(
-        dx=display_pixel_size,
-        units='m',
-        length_fraction=0.15,
-        location='lower right',
-        box_alpha=0.8,
-        box_color='white',
-        color='black',
-        font_properties={'size': 12}
-    )
-    plt.gca().add_artist(scalebar)
-
-    plt.xticks([])
-    plt.yticks([])
-    plt.xlabel('')
-    plt.ylabel('')
-
-    # Add sampling points if provided
-    if sample_points is not None:
-        quadrat_size_pixels = int(window_size_meters / display_pixel_size)
-
-        if fast_display:
-            for y, x in sample_points:
-                half_size = quadrat_size_pixels // 2
-                square = plt.Rectangle((x//downsample_factor - half_size, y//downsample_factor - half_size),
-                                       quadrat_size_pixels, quadrat_size_pixels,
-                                       fill=False, linewidth=2, edgecolor="black")
-                plt.gca().add_patch(square)
-        else:
-            for y, x in sample_points:
-                half_size = quadrat_size_pixels // 2
-                square = plt.Rectangle((x - half_size, y - half_size),
-                                       quadrat_size_pixels, quadrat_size_pixels,
-                                       fill=False, linewidth=2, edgecolor="black")
-                plt.gca().add_patch(square)
-
-    # Add legend
-    legend_loc = 'upper center'
-    bbox_anchor = (0.5, 0.0)
-    if legend:
-        plt.legend(handles=handles, loc=legend_loc,
-                   bbox_to_anchor=bbox_anchor, ncol=2, fontsize=15.4)
-
-    plt.tight_layout()
-    plt.gca().set_aspect('equal')
-
-    # Save if path provided
-    if save_path:
-        plt.savefig(save_path, bbox_inches='tight')
-
-    plt.show()
-
 
 def display_map_streamlit(map_image, class_params,
                           sample_points=None, window_size_meters=1.0, pixel_size=0.01,
@@ -269,7 +167,7 @@ def display_proportions(proportions_array, classes, column_labels, decimals=2):
     print(f"┌─{'─' * name_width}─┬{separator * (n_cols)}{'─' * (n_cols - 1)}┐")
 
     # Column headers
-    header = f"│ {"Class":<{name_width}} │"
+    header = f"│ {'Class':<{name_width}} │"
     for label in column_labels:
         header += f" {label:^{col_width - 2}} │"
     print(header)
@@ -292,67 +190,6 @@ def display_proportions(proportions_array, classes, column_labels, decimals=2):
         row += f" {total:>{col_width - 2}.{decimals}%} │"
     print(row)
     print(f"└─{'─' * name_width}─┴{separator * n_cols}{'─' * (n_cols - 1)}┘")
-
-def compute_proportions_MC(samples_MC, n_classes=10):
-    proportions = []
-    for samples in samples_MC:
-        proportions.append(compute_proportions(samples, n_classes))
-    proportions = np.array(proportions)
-    return proportions
-
-def violin_plots(list_values_1, list_values_2, n_samples, labels, true_cover, class_name):
-    color1 = 'tab:blue'
-    color2 = 'tab:orange'
-
-    plt.figure(figsize=(12, 6))
-
-    plt.axhline(y=true_cover, color='black', linestyle='--', alpha=0.6)
-
-    positions = np.arange(1, len(n_samples) + 1)
-
-    violin_parts_1 = plt.violinplot(list_values_1, positions,
-                                    showmeans=True,
-                                    quantiles=len(list_values_1) * [[0.025, 0.975]],
-                                    side='low')
-    violin_parts_2 = plt.violinplot(list_values_2, positions,
-                                    showmeans=True,
-                                    quantiles=len(list_values_1) * [[0.025, 0.975]],
-                                    side='high')
-    # Customize appearance
-    for pc in violin_parts_1['bodies']:
-        pc.set_facecolor(color1)
-        pc.set_alpha(0.6)
-    violin_parts_1['cmeans'].set_color(color1)
-    violin_parts_1['cquantiles'].set_color(color1)
-    violin_parts_1['cmaxes'].set_color(color1)
-    violin_parts_1['cmins'].set_color(color1)
-
-    for pc in violin_parts_2['bodies']:
-        pc.set_facecolor(color2)
-        pc.set_alpha(0.6)
-    violin_parts_2['cmeans'].set_color(color2)
-    violin_parts_2['cquantiles'].set_color(color2)
-    violin_parts_2['cmaxes'].set_color(color2)
-    violin_parts_2['cmins'].set_color(color2)
-
-    # Add legend
-    from matplotlib.patches import Patch
-    legend_elements = [
-        Patch(facecolor=color1, alpha=0.6, label=labels[0]),
-        Patch(facecolor=color2, alpha=0.6, label=labels[1])
-    ]
-    plt.legend(handles=legend_elements, loc='upper right')
-
-    # Customize plot
-    plt.xticks(positions, n_samples)
-    plt.grid(True, alpha=0.3)
-    plt.title(f'Cover Estimates Distributions for "{class_name}"')
-    plt.xlabel('Number of samples')
-    plt.ylabel('Cover estimate error')
-
-    plt.tight_layout()
-    plt.show()
-
 
 def display_sample_quadrats_streamlit(samples, class_params, max_samples=24, points=None):
     """

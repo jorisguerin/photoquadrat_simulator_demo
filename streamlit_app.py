@@ -1,9 +1,5 @@
 import streamlit as st
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-from matplotlib.patches import Patch, Rectangle
-from matplotlib_scalebar.scalebar import ScaleBar
 import pandas as pd
 
 from samplers import random_sampling_map, free_transect_sampling_map,\
@@ -11,15 +7,11 @@ from samplers import random_sampling_map, free_transect_sampling_map,\
 from utils import display_map_streamlit, compute_proportions, display_sample_quadrats_streamlit
 from parameters import CLASS_PARAMS
 
-import os
-from pathlib import Path
-
 
 # Base parameters
 
-map_path = "./DATA/map.npy"
+map_path = "data/map.npy"
 pixel_size = 0.01
-
 
 # Set page configuration
 st.set_page_config(
@@ -54,11 +46,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-
-
-
-
-
 @st.cache_data
 def load_map(map_path):
     """Load the benthic map from file"""
@@ -77,7 +64,10 @@ def main():
         <h1> 🪸 Benthic Photo-quadrat Sampling Simulator</h1>
         <p>Interactive tool for simulating different photo-quadrat sampling strategies to estimate benthic cover proportions</p>
         <p style="margin-top: 10px; font-size: 0.85em; opacity: 0.7;">
-        by Joris Guérin | UMR Espace-Dev/IRD | joris.guerin@ird.fr
+        Code by Joris Guérin | UMR Espace-Dev/IRD | joris.guerin@ird.fr
+        </p>
+        <p style="margin-top: 10px; font-size: 0.85em; opacity: 0.7;">
+        Map by Daniele Ventura | Department of Environmental Biology/Sapienza Università di Roma | daniele.ventura@uniroma1.it
         </p>
     </div>
     """, unsafe_allow_html=True)
